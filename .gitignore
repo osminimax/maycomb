@@ -2,6 +2,7 @@ __pycache__/
 *.pyc
 .venv/
 data/
+data_preview/
 *.egg-info/
 .pytest_cache/
 maycomb.toml

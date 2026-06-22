@@ -314,10 +314,22 @@ class Hub:
             if ttft_s > 0:
                 await asyncio.sleep(ttft_s)
             sleep_per = (1.0 / tps) if (mode == "paced" and tps > 0) else 0.0
+            # Pace against an absolute schedule instead of sleeping a fixed slice
+            # per token. On Windows the asyncio timer resolution is ~15.6ms, so a
+            # per-token sleep shorter than that (e.g. above ~64 tok/s) silently
+            # collapses to no delay on a busy loop; targeting cumulative deadlines
+            # keeps the average rate honest and the stream observably paced on
+            # every platform.
+            loop = asyncio.get_running_loop()
+            start = loop.time()
+            paced_sent = 0
             for delta, paced in deltas:
                 rt.out_queue.put_nowait(Frame("data", payload_sse=self.chunk_frame(rt, delta=delta)))
                 if paced and sleep_per > 0:
-                    await asyncio.sleep(sleep_per)
+                    paced_sent += 1
+                    gap = (start + paced_sent * sleep_per) - loop.time()
+                    if gap > 0:
+                        await asyncio.sleep(gap)
             rt.out_queue.put_nowait(Frame("finish", finish_reason=finish_reason, partial=False))
         except asyncio.CancelledError:
             pass  # an abort path owns the stream ending from here
