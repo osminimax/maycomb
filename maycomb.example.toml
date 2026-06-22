@@ -1,0 +1,38 @@
+# Maycomb 설정 예시 — maycomb.toml 로 복사해서 사용하세요.
+# 콘솔(⚙ 설정)에서 바꾼 값은 SQLite에 저장되어 이 파일보다 우선합니다.
+
+[server]
+host = "127.0.0.1"
+port = 8000
+cors = true
+
+[auth]
+mode = "any"        # any: Authorization 헤더만 있으면 통과 / fixed: 고정 키 검증 (§1)
+api_key = ""
+
+[storage]
+data_dir = "./data"
+
+[[models.list]]      # GET /v1/models 응답 (§10) — 목록에 없는 모델명도 §1 정책대로 통과
+id = "mock-large-1"
+created = 1780000000
+
+[[models.list]]
+id = "mock-reasoning-1"
+created = 1780000000
+
+[tokenizer]
+encoding = "o200k_base"   # o200k_base | cl100k_base | approx  (§7)
+
+[wire]
+reasoning_alias = false    # true면 reasoning_content와 함께 `reasoning` 별칭도 출력 (§5)
+keepalive_interval_s = 15  # 첫 chunk 전 SSE 주석 간격 (§4.1)
+
+[pacing]
+tokens_per_second = 30     # paced 모드 기본 속도 (§4.5)
+ttft_ms = 0
+stress_interleave = false  # parallel tool call 조각 교차 전송 (§4.4)
+
+[modes]
+read_only = false          # true면 신규 요청 503 read_only_mode (§9.1)
+nonstream_cancel = "error500"  # non-streaming 취소 방식: error500 | drop (§8)

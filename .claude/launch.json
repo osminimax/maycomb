@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "maycomb",
+      "runtimeExecutable": "D:\\claude\\Maycomb\\.venv\\Scripts\\python.exe",
+      "runtimeArgs": ["-m", "maycomb", "serve", "--port", "8077", "--data-dir", ".\\data_preview"],
+      "port": 8077
+    }
+  ]
+}

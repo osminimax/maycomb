@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Maycomb 콘솔</title>
+<link rel="stylesheet" href="/static/console.css">
+</head>
+<body>
+<header id="topbar">
+  <div class="brand">Maycomb <span id="version" class="hint"></span></div>
+  <span id="conn-dot" class="dot off" title="WebSocket 연결 상태"></span>
+  <span id="pending-badge" class="badge">대기 0</span>
+  <span id="readonly-badge" class="badge danger" hidden>READ-ONLY</span>
+  <div class="spacer"></div>
+  <span id="tokenizer-badge" class="hint"></span>
+  <button id="btn-refresh" class="sm" title="목록 새로고침">↻</button>
+  <button id="btn-settings" class="sm">⚙ 설정</button>
+</header>
+
+<main>
+  <aside id="sidebar">
+    <div id="queue-tabs">
+      <button data-f="pending" class="on">대기</button>
+      <button data-f="">전체</button>
+    </div>
+    <ul id="xlist"></ul>
+  </aside>
+
+  <section id="detail">
+    <div id="empty-state">← 큐에서 교환(exchange)을 선택하세요</div>
+    <div id="xview" hidden>
+      <div id="xhead">
+        <div class="row">
+          <span id="x-status" class="chip"></span>
+          <code id="x-id" class="mono" title="chatcmpl id"></code>
+          <span id="x-model" class="chip alt"></span>
+          <span id="x-progress" class="hint"></span>
+        </div>
+        <div id="x-badges" class="row wrap"></div>
+      </div>
+
+      <nav id="tabs">
+        <button data-tab="conv" class="on">대화</button>
+        <button data-tab="params">파라미터</button>
+        <button data-tab="tools">도구 <span id="tools-count"></span></button>
+        <button data-tab="events">이벤트</button>
+        <button data-tab="raw">RAW</button>
+      </nav>
+      <div id="tab-conv" class="tab on"></div>
+      <div id="tab-params" class="tab"></div>
+      <div id="tab-tools" class="tab"></div>
+      <div id="tab-events" class="tab"></div>
+      <div id="tab-raw" class="tab"><pre class="mono" id="raw-pre"></pre></div>
+
+      <div id="result-card" hidden></div>
+
+      <div id="composer" hidden>
+        <div id="comp-warnings" class="warnbox" hidden></div>
+
+        <label class="lbl">reasoning_content <span class="hint">(비우면 필드 자체 생략 — §3)</span></label>
+        <textarea id="c-reasoning" rows="4" placeholder="사고 과정 (선택)…"></textarea>
+
+        <label class="lbl">content <span class="hint">(비우면 null)</span></label>
+        <textarea id="c-content" rows="6" placeholder="응답 본문…"></textarea>
+
+        <div class="lbl-row">
+          <label class="lbl">tool_calls</label>
+          <button id="btn-add-tc" class="sm">+ tool call 추가</button>
+        </div>
+        <div id="c-toolcalls"></div>
+        <datalist id="tools-datalist"></datalist>
+
+        <div class="comp-grid">
+          <label>finish_reason
+            <select id="c-finish">
+              <option value="auto">auto (tool_calls 있으면 tool_calls, 아니면 stop)</option>
+              <option value="stop">stop</option>
+              <option value="tool_calls">tool_calls</option>
+              <option value="length">length</option>
+              <option value="content_filter">content_filter</option>
+            </select>
+          </label>
+          <label>태그 <input id="c-tags" placeholder="쉼표로 구분"></label>
+          <label>오퍼레이터 노트 <input id="c-note" placeholder="(선택)"></label>
+          <label class="chk"><input type="checkbox" id="c-bypass"> 검증 강제 우회 <span class="hint">(자동 태그 기록)</span></label>
+        </div>
+
+        <div class="comp-grid" id="stream-controls">
+          <label>전송 모드
+            <select id="c-mode">
+              <option value="paced">paced (속도 분할)</option>
+              <option value="instant">instant (즉시)</option>
+            </select>
+          </label>
+          <label>tok/s <input id="c-rate" type="number" min="1" step="1"></label>
+          <label>TTFT(ms) <input id="c-ttft" type="number" min="0" step="100"></label>
+          <label class="chk"><input type="checkbox" id="c-interleave"> tool call 교차 전송(스트레스)</label>
+        </div>
+
+        <div class="btn-row">
+          <button id="btn-save">드래프트 저장</button>
+          <span id="draft-rev" class="hint"></span>
+          <div class="spacer"></div>
+          <button id="btn-live" class="alt" hidden>LIVE 시작</button>
+          <button id="btn-submit" class="primary">제출 ▶</button>
+        </div>
+
+        <div id="live-panel" hidden>
+          <div class="hint">LIVE 모드 — reasoning/content 입력란에 타이핑하면 그대로 SSE로 중계됩니다 (append-only,
+            content 전송이 시작되면 reasoning 입력란이 잠깁니다). tool call 카드의 [LIVE 전송] 버튼으로 tool call을 보냅니다.</div>
+          <div class="btn-row">
+            <span id="live-stage" class="chip"></span>
+            <div class="spacer"></div>
+            <button id="btn-live-finish-auto" class="primary">마감 (auto)</button>
+            <button id="btn-live-finish-stop">마감 (stop)</button>
+          </div>
+        </div>
+
+        <details id="danger-zone">
+          <summary>중단 / 오류 주입</summary>
+          <div class="btn-row">
+            <button id="btn-abort-stop">정상 마감 stop</button>
+            <button id="btn-abort-length">정상 마감 length</button>
+            <button id="btn-abort-hard" class="danger">강제 절단 (finish 없이 TCP 종료)</button>
+            <button id="btn-abort-cancel" class="danger">취소 (non-stream)</button>
+          </div>
+          <div class="btn-row">
+            <button data-inject="rate_limit">429 rate limit</button>
+            <button data-inject="server_error">500 server error</button>
+            <button data-inject="context_length_exceeded">400 context 초과</button>
+            <button id="btn-inject-delay">응답 지연…</button>
+            <button id="btn-inject-cut">스트림 절단…</button>
+          </div>
+          <div class="hint">HTTP 오류(429/500/400) 주입은 SSE 헤더 전송 전(첫 keep-alive 이전)에만 가능합니다.
+            지연 주입을 먼저 걸면 keep-alive가 보류되어 주입 가능 시간이 늘어납니다.</div>
+        </details>
+      </div>
+    </div>
+  </section>
+</main>
+
+<dialog id="settings-dialog">
+  <h3>서버 설정</h3>
+  <form method="dialog" id="settings-form">
+    <label class="chk"><input type="checkbox" id="s-readonly"> read-only 모드 (신규 요청 503)</label>
+    <label class="chk"><input type="checkbox" id="s-alias"> reasoning 별칭 동시 출력 (OpenRouter 호환)</label>
+    <label class="chk"><input type="checkbox" id="s-stress"> parallel tool call 교차 전송 기본값</label>
+    <label>토크나이저
+      <select id="s-tokenizer">
+        <option value="o200k_base">o200k_base (기본)</option>
+        <option value="cl100k_base">cl100k_base</option>
+        <option value="approx">approx (tiktoken 미사용)</option>
+      </select>
+    </label>
+    <label>기본 tok/s <input id="s-rate" type="number" min="1"></label>
+    <label>기본 TTFT(ms) <input id="s-ttft" type="number" min="0"></label>
+    <label>keep-alive 간격(초) <input id="s-keepalive" type="number" min="0" step="0.5"></label>
+    <label>인증 모드
+      <select id="s-auth"><option value="any">any (헤더만 필수)</option><option value="fixed">fixed (고정 키)</option></select>
+    </label>
+    <label>고정 API 키 <input id="s-apikey" placeholder="fixed 모드에서 사용"></label>
+    <label>non-stream 취소 방식
+      <select id="s-cancel"><option value="error500">500 오류 객체</option><option value="drop">즉시 종료</option></select>
+    </label>
+    <div class="btn-row">
+      <button value="cancel">닫기</button>
+      <button id="btn-save-settings" value="default" class="primary">저장</button>
+    </div>
+  </form>
+</dialog>
+
+<div id="toasts"></div>
+<script src="/static/console.js"></script>
+</body>
+</html>

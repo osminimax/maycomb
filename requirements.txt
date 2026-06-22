@@ -1,0 +1,4 @@
+fastapi>=0.115
+uvicorn[standard]>=0.30
+tiktoken>=0.8
+jsonschema>=4.23
