@@ -3,7 +3,7 @@
 서버를 띄운 뒤 실행하면 (1) 스트리밍 tool-call 요청을 보내고, 오퍼레이터가
 콘솔에서 응답하면 chunk를 출력합니다. (2) tool 결과를 붙여 후속 요청을 보냅니다.
 
-사용: python scripts/demo_client.py [--base http://127.0.0.1:8000]
+사용: uv run python scripts/demo_client.py [--base http://127.0.0.1:8000]
 """
 from __future__ import annotations
 

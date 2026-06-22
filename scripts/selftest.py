@@ -3,7 +3,7 @@
 `maycomb serve`가 떠 있는 상태에서 실행하면 하네스 역할(OpenAI 클라이언트)과
 오퍼레이터 역할(콘솔 API)을 동시에 수행하며 와이어 동작을 검증합니다.
 
-사용: python scripts/selftest.py [--base http://127.0.0.1:8000]
+사용: uv run python scripts/selftest.py [--base http://127.0.0.1:8000]
 """
 from __future__ import annotations
 
