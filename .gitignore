@@ -5,5 +5,6 @@ data/
 data_preview/
 *.egg-info/
 .pytest_cache/
-maycomb.toml
-maycomb_export.jsonl
+.claude/
+*.jsonl
+
